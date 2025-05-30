@@ -22,6 +22,8 @@ echo "Build complete! Files generated:"
 ls -la pkg/
 
 echo ""
-echo "To run:"
-echo "  python3 -m http.server 8000"
-echo "  # then open http://localhost:8000"
+echo "To serve:"
+echo "python3 -m http.server 8000"
+echo ""
+echo "Then open:"
+echo "http://localhost:8000"

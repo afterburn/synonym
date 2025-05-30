@@ -113,8 +113,7 @@ wasm-pack test --headless --firefox
 ```
 ├── Cargo.toml          # Rust dependencies
 ├── src/
-│   ├── lib.rs          # Main Bitcoin address generation logic
-│   └── tests.rs        # Unit tests
+│   └── lib.rs          # Main Bitcoin address generation logic
 ├── pkg/                # Generated WASM output (after build)
 ├── index.html          # Web interface
 └── README.md           # This file

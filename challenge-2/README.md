@@ -48,7 +48,7 @@ Open `index.html` in a browser after building. The interface provides:
 import init, {
   generate_bitcoin_address,
   restore_from_mnemonic,
-} from "./pkg/bitcoin_wasm.js";
+} from "./pkg/challenge_2.js";
 
 await init();
 

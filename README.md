@@ -11,7 +11,7 @@ Challenge 2 (WASM)
 4. Performance profiling demonstration (WASM bundle size analysis, runtime benchmarking of crypto operations vs pure JS, memory usage profiling)
 5. Make sure bitcoin/crypto specific libraries have synergy with eachother / build our own.
 
-Challenge 3 (Task orchistration)
+Challenge 3 (Task orchestration)
 
 1. Add proper signal handling (SIGTERM, SIGINT) for graceful shutdown instead of relying only on broadcast channels
 2. Implement retry logic with exponential backoff for transient failures rather than immediate fail-fast

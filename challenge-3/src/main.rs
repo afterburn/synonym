@@ -33,16 +33,21 @@ impl TaskOrchestrator {
         Self { shutdown_tx }
     }
 
-    pub async fn run(&self) -> Result<(), TaskError> {
+    pub async fn run(&self, simulate_failure: bool) -> Result<(), TaskError> {
         let mut shutdown_rx = self.shutdown_tx.subscribe();
 
-        info!("Starting task orchestration");
+        let msg = if simulate_failure {
+            "Starting task orchestration with simulated failure"
+        } else {
+            "Starting task orchestration"
+        };
+        info!("{}", msg);
 
         let tasks = vec![
             self.spawn_task("task-1", Duration::from_millis(500), false),
-            self.spawn_task("task-2", Duration::from_millis(1000), false),
+            self.spawn_task("task-2", Duration::from_millis(1000), simulate_failure), // Failure injection point
             self.spawn_task("task-3", Duration::from_millis(750), false),
-            self.spawn_task("task-4", Duration::from_millis(300), false),
+            self.spawn_task("task-4", Duration::from_millis(300), false), // Fastest task
             self.spawn_task("task-5", Duration::from_millis(900), false),
         ];
 
@@ -61,41 +66,7 @@ impl TaskOrchestrator {
                 info!("All tasks completed successfully");
                 Ok(())
             }
-            _ = shutdown_rx.recv() => {
-                warn!("Shutdown signal received");
-                Err(TaskError::CriticalFailure("External shutdown requested".to_string()))
-            }
-        }
-    }
-
-    pub async fn run_with_failure(&self) -> Result<(), TaskError> {
-        let mut shutdown_rx = self.shutdown_tx.subscribe();
-
-        info!("Starting task orchestration with simulated failure");
-
-        let tasks = vec![
-            self.spawn_task("task-1", Duration::from_millis(500), false),
-            self.spawn_task("task-2", Duration::from_millis(1000), true), // This will fail
-            self.spawn_task("task-3", Duration::from_millis(750), false),
-            self.spawn_task("task-4", Duration::from_millis(300), false),
-            self.spawn_task("task-5", Duration::from_millis(900), false),
-        ];
-
-        tokio::select! {
-            results = futures::future::join_all(tasks) => {
-                for (task_name, result) in results {
-                    match result {
-                        Ok(_) => info!("{} completed successfully", task_name),
-                        Err(e) => {
-                            error!("{} failed: {}", task_name, e);
-                            self.initiate_shutdown().await;
-                            return Err(e);
-                        }
-                    }
-                }
-                info!("All tasks completed successfully");
-                Ok(())
-            }
+            // Handle external shutdown request (e.g., SIGTERM, manual shutdown)
             _ = shutdown_rx.recv() => {
                 warn!("Shutdown signal received");
                 Err(TaskError::CriticalFailure("External shutdown requested".to_string()))
@@ -148,7 +119,6 @@ impl TaskOrchestrator {
         warn!("Initiating graceful shutdown");
         let _ = self.shutdown_tx.send(());
 
-        // Simulate resource cleanup
         sleep(Duration::from_millis(100)).await;
         info!("Resources cleaned up");
     }
@@ -164,7 +134,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     let orchestrator = Arc::new(TaskOrchestrator::new());
 
-    match orchestrator.run().await {
+    match orchestrator.run(false).await {
         Ok(_) => {
             info!("System completed successfully");
             std::process::exit(0);
@@ -184,13 +154,16 @@ mod tests {
 
     #[tokio::test]
     async fn test_successful_task_orchestration() {
-        tracing_subscriber::fmt::try_init().ok();
+        tracing_subscriber::fmt::try_init().ok(); // Ignore if already initialized
 
         let orchestrator = TaskOrchestrator::new();
-        let result = timeout(Duration::from_secs(5), orchestrator.run()).await;
+        let result = timeout(Duration::from_secs(5), orchestrator.run(false)).await;
 
-        assert!(result.is_ok());
-        assert!(result.unwrap().is_ok());
+        assert!(result.is_ok(), "Test should not timeout");
+        assert!(
+            result.unwrap().is_ok(),
+            "All tasks should complete successfully"
+        );
     }
 
     #[tokio::test]
@@ -198,11 +171,14 @@ mod tests {
         tracing_subscriber::fmt::try_init().ok();
 
         let orchestrator = TaskOrchestrator::new();
-        let result = timeout(Duration::from_secs(5), orchestrator.run_with_failure()).await;
+        let result = timeout(Duration::from_secs(5), orchestrator.run(true)).await;
 
-        assert!(result.is_ok());
+        assert!(result.is_ok(), "Test should not timeout");
         let inner_result = result.unwrap();
-        assert!(inner_result.is_err());
+        assert!(
+            inner_result.is_err(),
+            "Should fail due to simulated task failure"
+        );
 
         match inner_result {
             Err(TaskError::CriticalFailure(_)) => (),
@@ -217,22 +193,21 @@ mod tests {
         let orchestrator = Arc::new(TaskOrchestrator::new());
         let orchestrator_clone = Arc::clone(&orchestrator);
 
-        let run_handle = tokio::spawn(async move { orchestrator_clone.run().await });
+        let run_handle = tokio::spawn(async move { orchestrator_clone.run(false).await });
 
-        // Trigger shutdown after a short delay
         tokio::spawn(async move {
             sleep(Duration::from_millis(100)).await;
             orchestrator.shutdown().await;
         });
 
         let result = timeout(Duration::from_secs(5), run_handle).await;
-        assert!(result.is_ok());
+        assert!(result.is_ok(), "Test should not timeout");
 
         let join_result = result.unwrap();
-        assert!(join_result.is_ok());
+        assert!(join_result.is_ok(), "Task join should succeed");
 
         let task_result = join_result.unwrap();
-        assert!(task_result.is_err());
+        assert!(task_result.is_err(), "Should fail due to external shutdown");
     }
 
     #[tokio::test]
@@ -242,11 +217,14 @@ mod tests {
         let orchestrator = TaskOrchestrator::new();
         let start_time = std::time::Instant::now();
 
-        let result = orchestrator.run_with_failure().await;
+        let result = orchestrator.run(true).await;
         let elapsed = start_time.elapsed();
 
-        assert!(result.is_err());
-        // Should fail before all tasks complete (faster than 1000ms)
-        assert!(elapsed < Duration::from_millis(1200));
+        assert!(result.is_err(), "Should fail due to task-2 failure");
+        assert!(
+            elapsed < Duration::from_millis(1200),
+            "Should fail fast, not wait for all tasks. Elapsed: {:?}",
+            elapsed
+        );
     }
 }

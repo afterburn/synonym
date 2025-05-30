@@ -21,3 +21,5 @@ Challenge 3 (Task orchestration)
 6. Separate task definitions into their own modules with configurable parameters via config file
 7. Add integration tests with real external dependencies and chaos engineering scenarios
 8. Implement proper resource pooling and cleanup verification in shutdown sequence
+
+[Video of working challenge 2](https://www.loom.com/share/d6f21e6b8f5e47e5aa8e3995e42408c9)

@@ -1,7 +1,7 @@
 use bip39::{Language, Mnemonic};
 use bs58;
 use k256::elliptic_curve::sec1::ToEncodedPoint;
-use k256::{elliptic_curve::rand_core::OsRng, SecretKey};
+use k256::SecretKey;
 use ripemd::Ripemd160;
 use sha2::{Digest, Sha256};
 use wasm_bindgen::prelude::*;

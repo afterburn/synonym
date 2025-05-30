@@ -1,0 +1,79 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Bitcoin Address Generator</title>
+    <style>
+        body { font-family: Arial, sans-serif; margin: 20px; }
+        textarea { width: 100%; height: 80px; margin: 10px 0; }
+        button { padding: 10px 20px; margin: 5px; }
+        #output { margin-top: 20px; padding: 15px; background: #f5f5f5; border-radius: 5px; }
+        .error { color: red; background: #ffe6e6; }
+    </style>
+</head>
+<body>
+    <h1>Bitcoin Address Generator</h1>
+    <button id="generate">Generate New Wallet</button>
+    
+    <h3>Or restore from existing seed:</h3>
+    <textarea id="seed" placeholder="Enter your 12-word mnemonic seed phrase here..."></textarea>
+    <button id="restore">Restore from Seed</button>
+    
+    <div id="output"></div>
+
+    <script type="module">
+        import init, { generate_bitcoin_address, restore_from_mnemonic } from './pkg/challenge_2.js';
+        
+        async function run() {
+            await init();
+
+            document.getElementById('restore').addEventListener('click', () => {
+                const seedPhrase = document.getElementById('seed').value.trim();
+                
+                if (!seedPhrase) {
+                    document.getElementById('output').innerHTML = `
+                        <div class="error">
+                            <h3>Error:</h3>
+                            <p>Please enter a mnemonic seed phrase</p>
+                        </div>
+                    `;
+                    return;
+                }
+
+                try {
+                    const address = restore_from_mnemonic(seedPhrase);
+                    document.getElementById('output').innerHTML = `
+                        <h3>Restored Bitcoin Wallet:</h3>
+                        <p><strong>Mnemonic:</strong> ${address.mnemonic}</p>
+                        <p><strong>Address:</strong> ${address.address}</p>
+                        <p><strong>Private Key:</strong> ${address.private_key}</p>
+                        <p><strong>Public Key:</strong> ${address.public_key}</p>
+                    `;
+                } catch (error) {
+                    document.getElementById('output').innerHTML = `
+                        <div class="error">
+                            <h3>Error:</h3>
+                            <p>${error}</p>
+                        </div>
+                    `;
+                }
+            });
+            
+            document.getElementById('generate').addEventListener('click', () => {
+                const address = generate_bitcoin_address();
+                document.getElementById('output').innerHTML = `
+                    <h3>Generated Bitcoin Wallet:</h3>
+                    <p><strong>Mnemonic:</strong> ${address.mnemonic}</p>
+                    <p><strong>Address:</strong> ${address.address}</p>
+                    <p><strong>Private Key:</strong> ${address.private_key}</p>
+                    <p><strong>Public Key:</strong> ${address.public_key}</p>
+                `;
+                
+                // Auto-fill textarea with generated mnemonic for easy testing
+                document.getElementById('seed').value = address.mnemonic;
+            });
+        }
+        
+        run();
+    </script>
+</body>
+</html>
